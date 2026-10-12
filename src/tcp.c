@@ -6,7 +6,7 @@ server_status_e bind_tcp_port(tcp_server *server, int port) {
         return SERVER_SOCKET_ERROR;
     }
 
-    if (port <= 0 || port > 65535) {
+    if (port < 0 || port > 65535) {
         debug_log("Invalid port number");
         return SERVER_BIND_ERROR;
     }
@@ -32,6 +32,9 @@ server_status_e bind_tcp_port(tcp_server *server, int port) {
         server->socket_fd = -1;
         return SERVER_BIND_ERROR;
     }
+
+    socklen_t addr_len = sizeof(server->address);
+    getsockname(server->socket_fd, (struct sockaddr *)&(server->address), &addr_len);
 
     if (listen(server->socket_fd, 5) < 0) {
         debug_log("Listen failed");

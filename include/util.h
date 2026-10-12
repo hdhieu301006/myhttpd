@@ -4,6 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void debug_log(const char *message);
+#define debug_log(msg) printf("[%s] %s\n", __FILE__, (msg))
 
 #endif // UTIL_H

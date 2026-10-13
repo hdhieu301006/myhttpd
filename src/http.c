@@ -12,7 +12,10 @@ void serve_file(const char *path, http_response *response) {
     if (!file) {
         response->status_code = 404;
         strncpy(response->reason_phrase, "Not Found", sizeof(response->reason_phrase) - 1);
-        serve_file("./www/404.html", response);
+        
+        if (!strcmp(path, "./www/404.html")) {
+            serve_file("./www/404.html", response);
+        }
         return;
     }
 
@@ -159,7 +162,7 @@ void free_http_response(http_response *response) {
         free(response->body);
         response->body = NULL;
     }
-    response->body = 0;
+    response->body_length = 0;
 }
 
 http_parse_e parse_http_headers(const char *raw_request, http_request *request) {
@@ -189,11 +192,12 @@ http_parse_e parse_http_headers(const char *raw_request, http_request *request) 
                 value++;
             }
 
-            request->headers = realloc(request->headers, sizeof(http_header_t) * (request->header_count + 1));
-            if (!request->headers) {
+            http_header_t *temp = realloc(request->headers, sizeof(http_header_t) * (request->header_count + 1));
+            if (!temp) {
                 perror("Failed to allocate memory for headers");
-                exit(EXIT_FAILURE);
+                return HTTP_PARSE_INVALID;
             }
+            request->headers = temp;
 
             strncpy(request->headers[request->header_count].key, key, sizeof(request->headers[request->header_count].key) - 1);
             strncpy(request->headers[request->header_count].value, value, sizeof(request->headers[request->header_count].value) - 1);
@@ -208,12 +212,18 @@ http_parse_e parse_http_headers(const char *raw_request, http_request *request) 
 }
 
 void free_http_headers(http_request *request) {
-    free(request->headers);
-    request->headers = NULL;
+    if (request->headers) {
+        free(request->headers);
+        request->headers = NULL;
+    }
     request->header_count = 0;
 }
 
 http_method_e http_method_to_enum(char *method) {
+    if (method == NULL) {
+        return HTTP_METHOD_UNK;
+    }
+
     if (!strcmp(method, "GET")) {
         return HTTP_METHOD_GET;
     }

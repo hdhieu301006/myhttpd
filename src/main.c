@@ -14,8 +14,7 @@ int main() {
         int client_fd = accept_client(server.socket_fd);
         if (client_fd == -1) {
             debug_log("Failed to accept client connection");
-            close(server.socket_fd);
-            exit(EXIT_FAILURE);
+            continue;
         }
 
         debug_log("Client connected");
@@ -26,15 +25,19 @@ int main() {
         init_http_response(&response);
 
         if (read_http_request(client_fd, &request) != HTTP_PARSE_OK) {
-            debug_log("Failed to read or parse HTTP request");
+            debug_log("Failed to read HTTP request");
+            free_http_headers(&request);
+            free_http_response(&response);
             close(client_fd);
-            return 0;
+            continue;
         }
 
         if (parse_http_headers(request.buffer, &request) != HTTP_PARSE_OK) {
-            debug_log("Failed to read or parse HTTP request");
+            debug_log("Failed to parse HTTP headers");
+            free_http_headers(&request);
+            free_http_response(&response);
             close(client_fd);
-            return 0;
+            continue;
         }
 
         char sanitized_path[1024] = {0};
@@ -48,6 +51,7 @@ int main() {
 
         close(client_fd);
     }
+
     close(server.socket_fd);
     return 0;
 }

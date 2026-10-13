@@ -1,5 +1,5 @@
 #include "../include/tcp.h"
-#include "../include/util.h"
+#include "../include/main.h"
 
 server_status_e bind_tcp_port(tcp_server *server, int port) {
     if (server == NULL) {
@@ -8,7 +8,7 @@ server_status_e bind_tcp_port(tcp_server *server, int port) {
 
     if (port < 0 || port > 65535) {
         debug_log("Invalid port number");
-        return SERVER_BIND_ERROR;
+        return SERVER_SOCKET_ERROR;
     }
 
     memset(server, 0, sizeof(*server));

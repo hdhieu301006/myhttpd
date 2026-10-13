@@ -7,6 +7,85 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 
+void serve_file(const char *path, http_response *response) {
+    FILE *file = fopen(path, "rb+");
+    if (!file) {
+        response->status_code = 404;
+        strncpy(response->reason_phrase, "Not Found", sizeof(response->reason_phrase) - 1);
+        serve_file("./www/404.html", response);
+        return;
+    }
+
+    // Determine the file size
+    fseek(file, 0, SEEK_END);
+    size_t file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    // Allocate memory for the file content
+    char *file_content = malloc(file_size + 1);
+    if (!file_content) {
+        perror("Failed to allocate memory for file content");
+        fclose(file);
+        exit(EXIT_FAILURE);
+    }
+
+    fread(file_content, 1, file_size, file);
+    fclose(file);
+    file_content[file_size] = '\0';
+
+    // Set the response body
+    response->body = file_content;
+    response->body_length = file_size;
+
+    // Determine content type
+    if (strstr(path, ".html")) {
+        add_http_header(response, "Content-Type", "text/html");
+    } else if (strstr(path, ".js")) {
+        add_http_header(response, "Content-Type", "application/javascript");
+    } else if (strstr(path, ".png")) {
+        add_http_header(response, "Content-Type", "image/png");
+    } else {
+        add_http_header(response, "Content-Type", "application/octet-stream");
+    }
+
+    // Add content length header
+    char content_length[32];
+    snprintf(content_length, sizeof(content_length), "%zu", file_size);
+    add_http_header(response, "Content-Length", content_length);
+}
+
+void sanitize_path(const char *requested_path, char *sanitized_path, size_t buffer_size) {
+    const char *web_root = "./www";
+
+    if (!strcmp(requested_path, "/")) {
+        snprintf(sanitized_path, buffer_size, "%s/index.html", web_root);
+        return;
+    }
+
+    snprintf(sanitized_path, buffer_size, "%s%s", web_root, requested_path);
+
+    if (strstr(sanitized_path, "..")) {
+        strncpy(sanitized_path, "./www/404.html", buffer_size - 1); // Serve a 404 page
+    }
+}
+
+void send_http_response(int client_fd, const http_response *response) {
+    size_t response_length = 0;
+    char *response_data = construct_http_response(response, &response_length);
+
+    size_t total_sent = 0;
+    while (total_sent < response_length) {
+        ssize_t bytes_sent = send(client_fd, response_data + total_sent, response_length - total_sent, 0);
+        if (bytes_sent <= 0) {
+            perror("Failed to send response");
+            break;
+        }
+        total_sent += bytes_sent;
+    }
+
+    free(response_data);
+}
+
 char *construct_http_response(const http_response *response, size_t *response_length) {
     size_t buffer_size = 1024;
     char *buffer = malloc(buffer_size);
@@ -70,9 +149,17 @@ void add_http_header(http_response *response, const char *key, const char *value
 }
 
 void free_http_response(http_response *response) {
-    free(response->headers);
-    response->headers = NULL;
+    if (response->headers) {
+        free(response->headers);
+        response->headers = NULL;
+    }
     response->header_count = 0;
+
+    if (response->body) {
+        free(response->body);
+        response->body = NULL;
+    }
+    response->body = 0;
 }
 
 http_parse_e parse_http_headers(const char *raw_request, http_request *request) {

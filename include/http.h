@@ -59,5 +59,7 @@ void free_http_headers(http_request *request);
 http_parse_e read_http_request(int socket_fd, http_request *request);
 http_parse_e parse_http_headers(const char *raw_request, http_request *request);
 http_method_e http_method_to_enum(char *method);
-
+void sanitize_path(const char *requested_path, char *sanitized_path, size_t buffer_size);
+void serve_file(const char *path, http_response *response);
+void send_http_response(int client_fd, const http_response *response);
 #endif // HTTP_H

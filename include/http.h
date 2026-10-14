@@ -62,4 +62,5 @@ http_method_e http_method_to_enum(char *method);
 void sanitize_path(const char *requested_path, char *sanitized_path, size_t buffer_size);
 void serve_file(const char *path, http_response *response);
 void send_http_response(int client_fd, const http_response *response);
+bool handle_request(http_request *req, http_response *res);
 #endif // HTTP_H

@@ -1,4 +1,5 @@
 #include "../include/http.h"
+#include "../include/route.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -7,13 +8,27 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 
+extern Route routes[];
+extern int route_count;
+
+bool handle_request(http_request *request, http_response *response) {
+    for (int i = 0; i < route_count; i++) {
+        if (!strcmp(routes[i].path, request->path) && routes[i].methode == request->methode) {
+            routes[i].handler(request, response);
+            return true;            
+        }
+    }
+
+    return false;
+}
+
 void serve_file(const char *path, http_response *response) {
     FILE *file = fopen(path, "rb+");
     if (!file) {
         response->status_code = 404;
         strncpy(response->reason_phrase, "Not Found", sizeof(response->reason_phrase) - 1);
         
-        if (!strcmp(path, "./www/404.html")) {
+        if (strcmp(path, "./www/404.html")) {
             serve_file("./www/404.html", response);
         }
         return;
